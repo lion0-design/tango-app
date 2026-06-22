@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#4f46e5">
+<link rel="manifest" href="manifest.json">
+<title>単語帳</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+    background: #f5f5f7;
+    color: #1c1c1e;
+    min-height: 100dvh;
+  }
+
+  header {
+    background: #4f46e5;
+    color: white;
+    padding: 16px 20px 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  header h1 { font-size: 20px; font-weight: 700; }
+  header .count { font-size: 13px; opacity: 0.85; }
+
+  /* タブ */
+  .tabs {
+    display: flex;
+    gap: 4px;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px 0;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.65);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab.active {
+    color: white;
+    border-bottom-color: white;
+  }
+
+  .toolbar {
+    padding: 12px 16px;
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn-add {
+    flex: 1;
+    background: #4f46e5;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .btn-add:active { opacity: 0.8; }
+
+  .btn-settings {
+    background: white;
+    border: 1.5px solid #d1d5db;
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+  }
+
+  /* 単語カード */
+  .word-list {
+    padding: 0 16px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .word-card {
+    background: white;
+    border-radius: 16px;
+    padding: 16px 16px 44px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    position: relative;
+    transition: opacity 0.3s;
+  }
+  .word-card.memorized {
+    border-left: 4px solid #22c55e;
+  }
+
+  .word-card .num {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+  .word-card .word-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .word-card .word {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1c1c1e;
+  }
+  .word-card .yomi {
+    font-size: 13px;
+    color: #6b7280;
+  }
+
+  .word-card .meaning {
+    font-size: 7px;
+    color: #374151;
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+
+  .word-card .example {
+    font-size: 6.5px;
+    color: #6b7280;
+    line-height: 1.5;
+    border-left: 3px solid #e0e7ff;
+    padding-left: 10px;
+  }
+
+  .word-card .simple {
+    font-size: 13px;
+    color: #374151;
+    line-height: 1.5;
+    border-left: 3px solid #fde68a;
+    margin-top: 8px;
+    background: #fffbeb;
+    border-radius: 0 6px 6px 0;
+    padding: 6px 10px;
+  }
+
+  /* カード下部ボタン */
+  .card-actions {
+    position: absolute;
+    bottom: 10px;
+    left: 14px;
+    right: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .check-btn {
+    background: none;
+    border: 2px solid #d1d5db;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    color: #d1d5db;
+  }
+  .check-btn.checked {
+    background: #22c55e;
+    border-color: #22c55e;
+    color: white;
+  }
+  .check-btn:active { transform: scale(0.9); }
+
+  .delete-btn {
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    color: #d1d5db;
+    padding: 4px;
+  }
+  .delete-btn:active { color: #ef4444; }
+
+  .loading-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #6b7280;
+    font-size: 14px;
+  }
+  .spinner {
+    width: 20px; height: 20px;
+    border: 2px solid #e0e7ff;
+    border-top-color: #4f46e5;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #9ca3af;
+    font-size: 15px;
+    line-height: 2;
+  }
+
+  /* モーダル */
+  .modal-bg {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .modal {
+    background: white;
+    border-radius: 20px 20px 0 0;
+    padding: 24px 20px 40px;
+    width: 100%;
+    max-width: 600px;
+  }
+  .modal h2 { font-size: 18px; margin-bottom: 16px; }
+
+  .modal input {
+    width: 100%;
+    border: 1.5px solid #d1d5db;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 16px;
+    font-family: inherit;
+    outline: none;
+    margin-bottom: 12px;
+  }
+  .modal input:focus { border-color: #4f46e5; }
+
+  .modal-btns {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .modal-btns button {
+    flex: 1;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-cancel { background: #f3f4f6; color: #374151; }
+  .btn-ok { background: #4f46e5; color: white; }
+  .btn-ok:disabled { background: #a5b4fc; }
+
+  /* 設定モーダル */
+  .settings-modal {
+    background: white;
+    border-radius: 20px 20px 0 0;
+    padding: 24px 20px 40px;
+    width: 100%;
+    max-width: 600px;
+  }
+  .settings-modal h2 { font-size: 18px; margin-bottom: 6px; }
+  .settings-modal p { font-size: 13px; color: #6b7280; margin-bottom: 16px; }
+  .settings-modal input {
+    width: 100%;
+    border: 1.5px solid #d1d5db;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    font-family: monospace;
+    outline: none;
+    margin-bottom: 12px;
+  }
+  .settings-modal input:focus { border-color: #4f46e5; }
+  .api-status {
+    font-size: 13px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+  }
+  .api-status.ok { background: #dcfce7; color: #166534; }
+  .api-status.none { background: #f3f4f6; color: #6b7280; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <h1>📖 単語帳</h1>
+    <span class="count" id="count">0 単語</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" id="tabLearning">学習中 <span id="badgeLearning"></span></div>
+    <div class="tab" id="tabMemorized">覚えた ✅ <span id="badgeMemorized"></span></div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button class="btn-add" id="btnAdd">＋ 単語を追加</button>
+  <button class="btn-settings" id="btnSettings" title="設定">⚙️</button>
+</div>
+
+<div class="word-list" id="wordList"></div>
+
+<!-- 単語追加モーダル -->
+<div class="modal-bg" id="addModal">
+  <div class="modal">
+    <h2>単語を追加</h2>
+    <input type="text" id="wordInput" placeholder="単語を入力（例：逡巡）" maxlength="20">
+    <div class="modal-btns">
+      <button class="btn-cancel">キャンセル</button>
+      <button class="btn-ok" id="addBtn">追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div class="modal-bg" id="settingsModal">
+  <div class="settings-modal">
+    <h2>⚙️ 設定</h2>
+    <p>Gemini API キーを入力してください。<br>キーはこの端末にのみ保存されます。</p>
+    <div id="apiStatus" class="api-status none">APIキー未設定</div>
+    <input type="password" id="apiKeyInput" placeholder="AIza...">
+    <div class="modal-btns">
+      <button class="btn-cancel">閉じる</button>
+      <button class="btn-ok">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_KEY_STORAGE = 'gemini_api_key';
+const WORDS_STORAGE   = 'tango_words';
+
+let words = JSON.parse(localStorage.getItem(WORDS_STORAGE) || '[]');
+let currentTab = 'learning'; // 'learning' | 'memorized'
+
+function saveWords() {
+  localStorage.setItem(WORDS_STORAGE, JSON.stringify(words));
+}
+function getApiKey() {
+  return localStorage.getItem(API_KEY_STORAGE) || '';
+}
+
+// ---------- タブ ----------
+document.getElementById('tabLearning').addEventListener('click', () => {
+  currentTab = 'learning';
+  document.getElementById('tabLearning').classList.add('active');
+  document.getElementById('tabMemorized').classList.remove('active');
+  render();
+});
+document.getElementById('tabMemorized').addEventListener('click', () => {
+  currentTab = 'memorized';
+  document.getElementById('tabMemorized').classList.add('active');
+  document.getElementById('tabLearning').classList.remove('active');
+  render();
+});
+
+// ---------- 描画 ----------
+function render() {
+  const list = document.getElementById('wordList');
+  const learning  = words.filter(w => !w.memorized);
+  const memorized = words.filter(w =>  w.memorized);
+
+  document.getElementById('count').textContent = words.length + ' 単語';
+  document.getElementById('badgeLearning').textContent  = learning.length  ? `(${learning.length})`  : '';
+  document.getElementById('badgeMemorized').textContent = memorized.length ? `(${memorized.length})` : '';
+
+  const target = currentTab === 'learning' ? learning : memorized;
+  // 元のインデックスを保持するため words 配列上のインデックスで管理
+  const indices = words.reduce((acc, w, i) => {
+    if (currentTab === 'learning'  && !w.memorized) acc.push(i);
+    if (currentTab === 'memorized' &&  w.memorized) acc.push(i);
+    return acc;
+  }, []);
+
+  if (indices.length === 0) {
+    const msg = currentTab === 'learning'
+      ? 'まだ単語がありません。<br>「＋ 単語を追加」から追加してください。'
+      : 'まだ覚えた単語はありません。<br>チェックボタンで移動できます。';
+    list.innerHTML = `<div class="empty">${msg}</div>`;
+    return;
+  }
+
+  list.innerHTML = indices.map(i => {
+    const w = words[i];
+    return `
+    <div class="word-card${w.memorized ? ' memorized' : ''}">
+      <span class="num">${i + 1}</span>
+      <div class="word-row">
+        <span class="word">${esc(w.word)}</span>
+        <span class="yomi">${esc(w.yomi)}</span>
+      </div>
+      <div class="meaning">${esc(w.meaning)}</div>
+      <div class="example">${esc(w.example)}</div>
+      ${w.simple ? `<div class="simple">🧒 ${esc(w.simple)}</div>` : ''}
+      <div class="card-actions">
+        <button class="check-btn${w.memorized ? ' checked' : ''}" onclick="toggleMemorized(${i})" title="${w.memorized ? '学習中に戻す' : '覚えた！'}">✓</button>
+        <button class="delete-btn" onclick="deleteWord(${i})" title="削除">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toggleMemorized(i) {
+  words[i].memorized = !words[i].memorized;
+  saveWords();
+  // 覚えたにしたときは覚えたタブへ、戻したときは学習中タブへ自動遷移
+  currentTab = words[i].memorized ? 'memorized' : 'learning';
+  document.getElementById('tabLearning').classList.toggle('active',  currentTab === 'learning');
+  document.getElementById('tabMemorized').classList.toggle('active', currentTab === 'memorized');
+  render();
+}
+
+function deleteWord(i) {
+  if (!confirm(`「${words[i].word}」を削除しますか？`)) return;
+  words.splice(i, 1);
+  saveWords();
+  render();
+}
+
+// ---------- 単語追加 ----------
+function openAddModal() {
+  if (!getApiKey()) { openSettings(); return; }
+  document.getElementById('wordInput').value = '';
+  document.getElementById('addModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('wordInput').focus(), 100);
+}
+function closeAddModal() {
+  document.getElementById('addModal').style.display = 'none';
+}
+
+async function addWord() {
+  const input = document.getElementById('wordInput').value.trim();
+  if (!input) return;
+  closeAddModal();
+
+  const loadingEl = document.createElement('div');
+  loadingEl.className = 'loading-card';
+  loadingEl.innerHTML = `<div class="spinner"></div>「${esc(input)}」を調べています…`;
+  document.getElementById('wordList').insertAdjacentElement('afterbegin', loadingEl);
+
+  try {
+    const data = await fetchWordData(input);
+    words.unshift(data);
+    saveWords();
+  } catch(e) {
+    alert('エラーが発生しました: ' + e.message);
+  } finally {
+    loadingEl.remove();
+    currentTab = 'learning';
+    document.getElementById('tabLearning').classList.add('active');
+    document.getElementById('tabMemorized').classList.remove('active');
+    render();
+  }
+}
+
+async function fetchWordData(word) {
+  const key = getApiKey();
+  const prompt = `以下の日本語の単語について、JSON形式で情報を返してください。
+単語：${word}
+
+返答は必ずこのJSON形式のみ（余分なテキストなし）：
+{
+  "word": "単語",
+  "yomi": "よみがな（ひらがな）",
+  "meaning": "意味（1〜2文で簡潔に）",
+  "example": "例文（その単語を使った自然な日本語の文）",
+  "simple": "小学生でもわかるやさしい言葉で説明（1〜2文）"
+}`;
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.3 }
+      })
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${res.status}`);
+  }
+  const json = await res.json();
+  const text = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('レスポンスの解析に失敗しました');
+  return JSON.parse(match[0]);
+}
+
+// ---------- 設定 ----------
+function openSettings() {
+  const key = getApiKey();
+  document.getElementById('apiKeyInput').value = key ? '●'.repeat(20) : '';
+  updateApiStatus();
+  document.getElementById('settingsModal').style.display = 'flex';
+}
+function closeSettings() {
+  document.getElementById('settingsModal').style.display = 'none';
+}
+function updateApiStatus() {
+  const el = document.getElementById('apiStatus');
+  if (getApiKey()) {
+    el.className = 'api-status ok';
+    el.textContent = '✅ APIキー設定済み';
+  } else {
+    el.className = 'api-status none';
+    el.textContent = 'APIキー未設定';
+  }
+}
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val || val.startsWith('●')) { closeSettings(); return; }
+  localStorage.setItem(API_KEY_STORAGE, val);
+  updateApiStatus();
+  alert('APIキーを保存しました。');
+  closeSettings();
+}
+
+// ---------- イベント ----------
+document.getElementById('btnAdd').addEventListener('click', openAddModal);
+document.getElementById('btnSettings').addEventListener('click', openSettings);
+document.getElementById('wordInput').addEventListener('keydown', e => { if (e.key === 'Enter') addWord(); });
+document.querySelector('#addModal .btn-cancel').addEventListener('click', closeAddModal);
+document.querySelector('#addModal .btn-ok').addEventListener('click', addWord);
+document.querySelector('#settingsModal .btn-cancel').addEventListener('click', closeSettings);
+document.querySelector('#settingsModal .btn-ok').addEventListener('click', saveApiKey);
+document.getElementById('addModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeAddModal(); });
+document.getElementById('settingsModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeSettings(); });
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+
+render();
+</script>
+</body>
+</html>
